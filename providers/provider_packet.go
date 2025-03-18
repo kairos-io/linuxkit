@@ -19,21 +19,27 @@ limitations under the License.
 package providers
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path"
 	"strings"
 	"time"
-
-	"github.com/packethost/packngo/metadata"
 )
 
-// TODO: Consider using a simple http get for the userdata
-// Its like others, just a GET
+const PacketBaseURL = "https://metadata.platformequinix.com"
+
+type PacketMetadata struct {
+	Hostname string   `json:"hostname"`
+	SSHKeys  []string `json:"ssh_keys"`
+}
 
 // ProviderPacket is the type implementing the Provider interface for Packet.net
 type ProviderPacket struct {
-	metadata *metadata.CurrentDevice
+	metadata *PacketMetadata
 	err      error
 }
 
@@ -53,7 +59,7 @@ func (p *ProviderPacket) Probe() bool {
 	c1 := make(chan ProviderPacket)
 	go func() {
 		res := ProviderPacket{}
-		res.metadata, res.err = metadata.GetMetadata()
+		res.metadata, res.err = GetMetadata()
 		c1 <- res
 	}()
 
@@ -71,7 +77,7 @@ func (p *ProviderPacket) Probe() bool {
 func (p *ProviderPacket) Extract() ([]byte, error) {
 	// do not retrieve if we Probed
 	if p.metadata == nil && p.err == nil {
-		p.metadata, p.err = metadata.GetMetadata()
+		p.metadata, p.err = GetMetadata()
 		if p.err != nil {
 			return nil, p.err
 		}
@@ -80,22 +86,22 @@ func (p *ProviderPacket) Extract() ([]byte, error) {
 	}
 
 	if err := os.WriteFile(path.Join(ConfigPath, Hostname), []byte(p.metadata.Hostname), 0644); err != nil {
-		return nil, fmt.Errorf("Packet: Failed to write hostname: %s", err)
+		return nil, fmt.Errorf("packet: Failed to write hostname: %s", err)
 	}
 
 	if err := os.MkdirAll(path.Join(ConfigPath, SSH), 0755); err != nil {
-		return nil, fmt.Errorf("Failed to create %s: %s", SSH, err)
+		return nil, fmt.Errorf("failed to create %s: %s", SSH, err)
 	}
 
 	sshKeys := strings.Join(p.metadata.SSHKeys, "\n")
 
 	if err := os.WriteFile(path.Join(ConfigPath, SSH, "authorized_keys"), []byte(sshKeys), 0600); err != nil {
-		return nil, fmt.Errorf("Failed to write ssh keys: %s", err)
+		return nil, fmt.Errorf("failed to write ssh keys: %s", err)
 	}
 
-	userData, err := metadata.GetUserData()
+	userData, err := GetUserData()
 	if err != nil {
-		return nil, fmt.Errorf("Packet: failed to get userdata: %s", err)
+		return nil, fmt.Errorf("packet: failed to get userdata: %s", err)
 	}
 
 	if len(userData) == 0 {
@@ -108,4 +114,45 @@ func (p *ProviderPacket) Extract() ([]byte, error) {
 	}
 
 	return userData, nil
+}
+
+// GetMetadata gets the metadata from the Packet metadata service
+func GetMetadata() (*PacketMetadata, error) {
+	res, err := http.Get(PacketBaseURL + "/metadata")
+	if err != nil {
+		return nil, err
+	}
+
+	b, err := io.ReadAll(res.Body)
+	res.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	var result struct {
+		Error string `json:"error"`
+		*PacketMetadata
+	}
+	if err := json.Unmarshal(b, &result); err != nil {
+		if res.StatusCode >= 400 {
+			return nil, errors.New(res.Status)
+		}
+		return nil, err
+	}
+	if result.Error != "" {
+		return nil, errors.New(result.Error)
+	}
+	return result.PacketMetadata, nil
+}
+
+// GetUserData gets the user data from the Packet metadata service
+func GetUserData() ([]byte, error) {
+	res, err := http.Get(PacketBaseURL + "/userdata")
+	if err != nil {
+		return nil, err
+	}
+
+	b, err := io.ReadAll(res.Body)
+	res.Body.Close()
+	return b, err
 }

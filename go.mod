@@ -4,7 +4,6 @@ go 1.24.1
 
 require (
 	github.com/diskfs/go-diskfs v1.5.2
-	github.com/packethost/packngo v0.31.0
 	github.com/vmware/vmw-guestinfo v0.0.0-20220317130741-510905f0efa3
 )
 
