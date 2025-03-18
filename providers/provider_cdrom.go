@@ -20,9 +20,8 @@ package providers
 
 import (
 	"fmt"
+	"log"
 	"path/filepath"
-
-	log "github.com/sirupsen/logrus"
 )
 
 // ListCDROMs lists all the cdroms in the system
@@ -34,14 +33,14 @@ func ListCDROMs() []Provider {
 		// Glob can only error on invalid pattern
 		panic(fmt.Sprintf("Invalid glob pattern: %s", cdromDevs))
 	}
-	log.Debugf("cdrom devices to be checked: %v", cdroms)
+	log.Printf("cdrom devices to be checked: %v", cdroms)
 	// get the devices that match the cloud-init spec
 	cidevs := FindCIs("cidata")
-	log.Debugf("CIDATA devices to be checked: %v", cidevs)
+	log.Printf("CIDATA devices to be checked: %v", cidevs)
 	// merge the two, ensuring that the list is unique
 	cdroms = append(cidevs, cdroms...)
 	cdroms = uniqueString(cdroms)
-	log.Debugf("unique devices to be checked: %v", cdroms)
+	log.Printf("unique devices to be checked: %v", cdroms)
 	var providers []Provider
 	for _, device := range cdroms {
 		providers = append(providers, NewProviderCDROM(device, userdataFiles, "CDROM"))

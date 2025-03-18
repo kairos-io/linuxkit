@@ -28,9 +28,9 @@ import (
 	"path"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/vmware/vmw-guestinfo/rpcvmx"
 	"github.com/vmware/vmw-guestinfo/vmcheck"
+	"log"
 )
 
 const (
@@ -73,11 +73,11 @@ func (p *ProviderVMware) Extract() ([]byte, error) {
 	// Get vendor data, if empty do not fail
 	vendorData, err := vmwareGet(guestVendorData)
 	if err != nil {
-		log.Debugf("VMWare: Failed to get vendordata: %v", err)
+		log.Printf("VMWare: Failed to get vendordata: %v", err)
 	} else {
 		err = ioutil.WriteFile(path.Join(ConfigPath, "vendordata"), vendorData, 0644)
 		if err != nil {
-			log.Debugf("VMWare: Failed to write vendordata: %v", err)
+			log.Printf("VMWare: Failed to write vendordata: %v", err)
 		}
 	}
 
@@ -110,13 +110,13 @@ func vmwareGet(name string) ([]byte, error) {
 	// get the gusest info value
 	out, err := config.String(name, "")
 	if err != nil {
-		log.Debugf("Getting guest info %s failed: error %s", name, err)
+		log.Printf("Getting guest info %s failed: error %s", name, err)
 		return nil, err
 	}
 
 	enc, err := config.String(name+".encoding", "")
 	if err != nil {
-		log.Debugf("Getting guest info %s.encoding failed: error %s", name, err)
+		log.Printf("Getting guest info %s.encoding failed: error %s", name, err)
 		return nil, err
 	}
 
@@ -128,7 +128,7 @@ func vmwareGet(name string) ([]byte, error) {
 
 		dst, err := ioutil.ReadAll(r)
 		if err != nil {
-			log.Debugf("Decoding base64 of '%s' failed %v", name, err)
+			log.Printf("Decoding base64 of '%s' failed %v", name, err)
 			return nil, err
 		}
 
@@ -138,13 +138,13 @@ func vmwareGet(name string) ([]byte, error) {
 
 		zr, err := gzip.NewReader(r)
 		if err != nil {
-			log.Debugf("New gzip reader from '%s' failed %v", name, err)
+			log.Printf("New gzip reader from '%s' failed %v", name, err)
 			return nil, err
 		}
 
 		dst, err := ioutil.ReadAll(zr)
 		if err != nil {
-			log.Debugf("Read '%s' failed %v", name, err)
+			log.Printf("Read '%s' failed %v", name, err)
 			return nil, err
 		}
 

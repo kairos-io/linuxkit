@@ -3,7 +3,7 @@ package providers
 import (
 	"fmt"
 	"github.com/diskfs/go-diskfs"
-	log "github.com/sirupsen/logrus"
+	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -32,7 +32,7 @@ func (p *ProviderCDROM) String() string {
 // Probe checks if the CD has the right file
 func (p *ProviderCDROM) Probe() bool {
 	if p.err != nil {
-		log.Errorf("there were errors probing %s: %v", p.device, p.err)
+		log.Printf("there were errors probing %s: %v", p.device, p.err)
 	}
 	return len(p.userdata) != 0
 }
@@ -94,7 +94,7 @@ func NewProviderCDROM(device string, datafiles []string, providerType string) *P
 				}
 			}
 			if p.userdata == nil {
-				log.Debugf("no userdata file found at any of %v", datafiles)
+				log.Printf("no userdata file found at any of %v", datafiles)
 			}
 		}
 	}
@@ -106,45 +106,45 @@ func NewProviderCDROM(device string, datafiles []string, providerType string) *P
 // https://github.com/canonical/cloud-init/blob/master/doc/rtd/topics/datasources/nocloud.rst
 func FindCIs(findLabel string) []string {
 	devs, err := filepath.Glob(blockDevs)
-	log.Debugf("block devices found: %v", devs)
+	log.Printf("block devices found: %v", devs)
 	if err != nil {
 		// Glob can only error on invalid pattern
 		panic(fmt.Sprintf("Invalid glob pattern: %s", blockDevs))
 	}
-	foundDevices := []string{}
+	var foundDevices []string
 	for _, device := range devs {
 		// get the base device name
 		dev := filepath.Base(device)
 		// ignore loop and ram devices
 		if strings.HasPrefix(dev, "loop") || strings.HasPrefix(dev, "ram") {
-			log.Debugf("ignoring loop or ram device: %s", dev)
+			log.Printf("ignoring loop or ram device: %s", dev)
 			continue
 		}
 		dev = fmt.Sprintf("/dev/%s", dev)
-		log.Debugf("checking device: %s", dev)
+		log.Printf("checking device: %s", dev)
 		// open readonly, ignore errors
 		disk, err := diskfs.Open(dev, diskfs.WithOpenMode(diskfs.ReadOnly))
 		if err != nil {
-			log.Debugf("failed to open device read-only: %s: %v", dev, err)
+			log.Printf("failed to open device read-only: %s: %v", dev, err)
 			continue
 		}
 		disk.DefaultBlocks = true
 		fs, err := disk.GetFilesystem(0)
 		if err != nil {
-			log.Debugf("failed to get filesystem on partition 0 for device: %s: %v", dev, err)
-			_ = disk.File.Close()
+			log.Printf("failed to get filesystem on partition 0 for device: %s: %v", dev, err)
+			_ = disk.Close()
 			continue
 		}
 		// get the label
 		label := strings.TrimSpace(fs.Label())
-		log.Debugf("found trimmed filesystem label for device: %s: '%s'", dev, label)
+		log.Printf("found trimmed filesystem label for device: %s: '%s'", dev, label)
 		if label == strings.ToUpper(findLabel) || label == strings.ToLower(findLabel) {
-			log.Debugf("adding device: %s", dev)
+			log.Printf("adding device: %s", dev)
 			foundDevices = append(foundDevices, dev)
 		}
-		err = disk.File.Close()
+		err = disk.Close()
 		if err != nil {
-			log.Debugf("failed closing device %s", dev)
+			log.Printf("failed closing device %s", dev)
 		}
 	}
 	return foundDevices

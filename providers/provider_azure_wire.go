@@ -23,9 +23,8 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
-
-	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -71,7 +70,7 @@ func ReportReady(client *http.Client) error {
 	if err != nil {
 		return fmt.Errorf("Report ready: POST XML: %s", err)
 	}
-	log.Debugf(
+	log.Printf(
 		"Report ready: ContainerId=%s InstanceId=%s succeeded",
 		goalState.ContainerID,
 		goalState.InstanceID,
